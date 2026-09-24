@@ -1,0 +1,72 @@
+Event Logs
+
+To find server reboot logs for the last three months, follow these steps:
+	1. Open the Windows Event Viewer by pressing Windows Key + R and typing eventvwr.msc.
+	2. Navigate to Windows Logs > System.
+	3. Use the Filter Current Log option to filter by Event ID 6005 (system startup), 6006 (system shutdown), and 41 (unexpected reboot).
+	4. Check the logs for any events that indicate a reboot, such as Event ID 1074, which records the user or process that triggered the restart.
+	• 1074: Initiated a shutdown or restart. It shows which user initiated it and the reason (e.g., updates, application).
+	• 6008: The previous system shutdown was unexpected, typically logged after power loss or a crash.
+	• 41 (Kernel-Power): System rebooted without a clean shutdown; usually indicates a critical crash or power supply issue.
+	• 6005: Logs when the Event Log service starts, indicating the system booted up.
+	• 6006: Logs that the system shut down cleanly.
+	• 1076: Records the reason for an unexpected shutdown when a user with privileges logs in
+	
+	5. Review the logs for any events that indicate an unexpected reboot, such as Event ID 6008, which logs the system shutting down abnormally.
+
+Get Active Events Categories
+Get-WinEvent -ListLog * |
+    Select-Object LogName, RecordCount, IsEnabled
+
+Search for text inside event messages
+Get-WinEvent -LogName System |
+    Where-Object {
+        $_.Message -like "*disk*"
+    } |
+    Select-Object TimeCreated, Id, ProviderName, Message
+
+If you don't know which log — search ALL logs (Windows Logs, Application & Service Logs)
+
+$EventID = 10016
+
+Get-WinEvent -ListLog * -ErrorAction SilentlyContinue |
+ForEach-Object {
+    try {
+        Get-WinEvent -FilterHashtable @{
+            LogName = $_.LogName
+            Id      = $EventID
+        } -MaxEvents 5 -ErrorAction Stop
+    }
+    catch {
+        # Ignore inaccessible logs
+    }
+} |
+Select-Object TimeCreated,
+              LogName,
+              Id,
+              LevelDisplayName,
+              ProviderName,
+              MachineName,
+              RecordId,
+              Message |
+Format-List
+
+A faster version for the three major logs
+
+$EventID = 10016
+
+'System','Application','Security' | ForEach-Object {
+    Get-WinEvent -FilterHashtable @{
+        LogName = $_
+        Id      = $EventID
+    } -MaxEvents 10 -ErrorAction SilentlyContinue
+} |
+Select-Object TimeCreated,
+              LogName,
+              Id,
+              LevelDisplayName,
+              ProviderName,
+              MachineName,
+              RecordId,
+              Message |
+Format-List
